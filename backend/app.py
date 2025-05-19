@@ -1,53 +1,34 @@
 
-from flask import Flask, request, jsonify
+from flask import Flask, render_template, request
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 import os
 
 app = Flask(__name__)
 
-@app.route('/send-code', methods=['POST'])
-def send_code():
-    data = request.json
-    phone = data.get('phone')
-    api_id = int(data.get('api_id'))
-    api_hash = data.get('api_hash')
+# تحميل القيم من متغيرات البيئة
+API_ID = int(os.getenv("API_ID", "123456"))
+API_HASH = os.getenv("API_HASH", "")
+SESSION_STRING = os.getenv("SESSION_STRING", "")
 
-    session = StringSession()
-    client = TelegramClient(session, api_id, api_hash)
+if not SESSION_STRING:
+    raise Exception("SESSION_STRING is required and must be set in environment variables.")
 
-    try:
-        client.connect()
-        client.send_code_request(phone)
-        client.disconnect()
-        return jsonify({'status': 'code_sent'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
-@app.route('/verify-code', methods=['POST'])
-def verify_code():
-    data = request.json
-    phone = data.get('phone')
-    api_id = int(data.get('api_id'))
-    api_hash = data.get('api_hash')
-    code = data.get('code')
-    password = data.get('password', None)
+@app.route("/")
+def index():
+    return "تطبيق تليجرام جاهز للعمل!"
 
-    session = StringSession()
-    client = TelegramClient(session, api_id, api_hash)
+@app.route("/send", methods=["POST"])
+def send_message():
+    phone = request.form.get("phone")
+    message = request.form.get("message")
+    async def main():
+        await client.send_message(phone, message)
+    with client:
+        client.loop.run_until_complete(main())
+    return "تم الإرسال"
 
-    try:
-        client.connect()
-        if password:
-            client.sign_in(phone, code, password=password)
-        else:
-            client.sign_in(phone, code)
-        string_session = client.session.save()
-        client.disconnect()
-        return jsonify({'session': string_session})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
