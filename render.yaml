@@ -1,6 +1,7 @@
 
 services:
   - type: web
+    repo: https://github.com/The-Tepthon/String
     name: tephton-session-api
     env: python
     buildCommand: "pip install -r requirements.txt"
